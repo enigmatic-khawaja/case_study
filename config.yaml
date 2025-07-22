@@ -1,0 +1,77 @@
+# ETL Pipeline Configuration
+# This file contains all configuration settings for the ETL pipeline
+
+database:
+  host: "sqlserver"  # Use "sqlserver" when running in Docker
+  port: 1433
+  database: "ETLDatabase"
+  username: "sa"
+  password: "YourStrong@Passw0rd"
+  driver: "ODBC+Driver+17+for+SQL+Server"
+  connection_timeout: 30
+  pool_size: 10
+  max_overflow: 20
+
+data_sources:
+  sales_data_path: "data/raw/sales_data.csv"
+  product_reference_path: "data/raw/product_reference.csv"
+  output_path: "data/processed/"
+  
+api:
+  exchange_rate_url: "https://api.exchangerate-api.com/v4/latest/"
+  base_currency: "USD"
+  timeout: 10
+  retry_attempts: 3
+  cache_duration: 3600  # 1 hour in seconds
+
+processing:
+  batch_size: 1000
+  max_workers: 4
+  use_pandas: true
+  
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  pipeline_log_file: "logs/pipeline.log"
+  error_log_file: "logs/errors.log"
+  currency_log_file: "logs/currency.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+pandas:
+  chunk_size: 1000
+  memory_efficient: true
+
+validation:
+  max_error_rate: 0.15  # 15%
+  required_fields:
+    - "OrderID"
+    - "ProductID"
+    - "OrderDate"
+    - "Region"
+    - "Currency"
+    - "CustomerID"
+  
+  date_formats:
+    - "%d/%m/%Y"
+    - "%d-%m-%Y"
+    - "%Y-%d-%m"
+  
+  valid_regions:
+    - "East"
+    - "West"
+    - "North"
+    - "South"
+  
+  valid_currencies:
+    - "USD"
+    - "EUR"
+    - "GBP"
+  
+  numeric_ranges:
+    sale_amount:
+      min: 0
+      max: 10000
+    discount:
+      min: 0
+      max: 1 

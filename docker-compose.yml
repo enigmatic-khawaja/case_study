@@ -1,0 +1,30 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrong@Passw0rd"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  notebook:
+    build: .
+    entrypoint: /app/docker-entrypoint.sh
+    ports:
+      - "8888:8888"
+    environment:
+      JUPYTER_TOKEN: "etlpipeline"
+      DB_HOST: "sqlserver"
+      DB_PASSWORD: "YourStrong@Passw0rd"
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./data:/app/notebooks/data
+      - ./src:/app/src
+      - ./config.yaml:/app/notebooks/config.yaml
+    restart: unless-stopped
+
+volumes:
+  sql_data:
