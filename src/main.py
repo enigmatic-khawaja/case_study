@@ -267,32 +267,3 @@ class ETLPipeline:
         report.append("=" * 60)
         
         return "\n".join(report)
-
-
-# def main():
-    # """Main function to run the ETL pipeline."""
-    # try:
-    #     pipeline = ETLPipeline()
-    #     metrics = pipeline.run_pipeline()
-    #     pipeline.save_pipeline_metrics(metrics)
-    #     report = pipeline.generate_pipeline_report(metrics)
-    #     pipeline.logger.info(report, event_type="report", pipeline_name="SalesETLPipeline")
-    #     report_path = "data/processed/pipeline_report.txt"
-    #     os.makedirs(os.path.dirname(report_path), exist_ok=True)
-    #     with open(report_path, 'w') as f:
-    #         f.write(report)
-    #     pipeline.logger.info(f"Pipeline report saved to: {report_path}", event_type="output", pipeline_name="SalesETLPipeline")
-    #     if metrics.get('overall_success', False):
-    #         pipeline.logger.info("✅ ETL Pipeline completed successfully!", event_type="success", pipeline_name="SalesETLPipeline")
-    #         return 0
-    #     else:
-    #         pipeline.logger.error("❌ ETL Pipeline failed!", event_type="failure", pipeline_name="SalesETLPipeline")
-    #         return 1
-    # except Exception as e:
-    #     logger = get_logger("ETLPipeline")
-    #     logger.error(f"❌ ETL Pipeline failed with error: {e}", event_type="failure", pipeline_name="SalesETLPipeline")
-    #     return 1
-
-
-# if __name__ == "__main__":
-#     exit(main())

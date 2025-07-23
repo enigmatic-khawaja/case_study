@@ -48,13 +48,12 @@ class DataLoader:
     def create_database_schema(self) -> bool:
         """
         Create database schema for the target tables.
-        
         Returns:
             True if successful, False otherwise
         """
         try:
-            self.logger.info("Creating database schema")
-            
+            self.logger.info("Creating database schema (drop and recreate tables)")
+
             # Define table schemas
             sales_table_schema = [
                 {"name": "OrderID", "type": "VARCHAR(50)", "nullable": False},
@@ -72,7 +71,7 @@ class DataLoader:
                 {"name": "Currency", "type": "VARCHAR(3)", "nullable": False},
                 {"name": "ProcessingTimestamp", "type": "DATETIME", "nullable": False}
             ]
-            
+
             error_logging_schema = [
                 {"name": "ErrorID", "type": "INT IDENTITY(1,1)", "nullable": False},
                 {"name": "OrderID", "type": "VARCHAR(50)", "nullable": True},
@@ -83,7 +82,7 @@ class DataLoader:
                 {"name": "ErrorTimestamp", "type": "DATETIME", "nullable": False, "default": "GETDATE()"},
                 {"name": "RawData", "type": "TEXT", "nullable": True}
             ]
-            
+
             currency_conversion_log_schema = [
                 {"name": "LogID", "type": "INT IDENTITY(1,1)", "nullable": False},
                 {"name": "FromCurrency", "type": "VARCHAR(3)", "nullable": False},
@@ -93,58 +92,65 @@ class DataLoader:
                 {"name": "Source", "type": "VARCHAR(50)", "nullable": False},
                 {"name": "RecordCount", "type": "INT", "nullable": False}
             ]
-            
-            # Create tables
+
             tables_created = []
-            
-            # Sales data table
-            if not self.db_manager.table_exists("SalesData"):
-                success = self.db_manager.create_table(
-                    "SalesData", 
-                    sales_table_schema, 
-                    primary_key="OrderID"
-                )
-                if success:
-                    tables_created.append("SalesData")
-                    self.logger.info("Created SalesData table")
-                else:
-                    self.logger.error("Failed to create SalesData table")
-                    return False
-            
-            # Error logging table
-            if not self.db_manager.table_exists("ErrorLogging"):
-                success = self.db_manager.create_table(
-                    "ErrorLogging", 
-                    error_logging_schema, 
-                    primary_key="ErrorID"
-                )
-                if success:
-                    tables_created.append("ErrorLogging")
-                    self.logger.info("Created ErrorLogging table")
-                else:
-                    self.logger.error("Failed to create ErrorLogging table")
-                    return False
-            
-            # Currency conversion log table
-            if not self.db_manager.table_exists("CurrencyConversionLog"):
-                success = self.db_manager.create_table(
-                    "CurrencyConversionLog", 
-                    currency_conversion_log_schema, 
-                    primary_key="LogID"
-                )
-                if success:
-                    tables_created.append("CurrencyConversionLog")
-                    self.logger.info("Created CurrencyConversionLog table")
-                else:
-                    self.logger.error("Failed to create CurrencyConversionLog table")
-                    return False
-            
+            dropped_tables = []
+
+            # Drop and create SalesData table
+            if self.db_manager.table_exists("SalesData"):
+                self.db_manager.drop_table("SalesData")
+                dropped_tables.append("SalesData")
+            success = self.db_manager.create_table(
+                "SalesData", 
+                sales_table_schema, 
+                primary_key="OrderID"
+            )
+            if success:
+                tables_created.append("SalesData")
+                self.logger.info("Created SalesData table")
+            else:
+                self.logger.error("Failed to create SalesData table")
+                return False
+
+            # Drop and create ErrorLogging table
+            if self.db_manager.table_exists("ErrorLogging"):
+                self.db_manager.drop_table("ErrorLogging")
+                dropped_tables.append("ErrorLogging")
+            success = self.db_manager.create_table(
+                "ErrorLogging", 
+                error_logging_schema, 
+                primary_key="ErrorID"
+            )
+            if success:
+                tables_created.append("ErrorLogging")
+                self.logger.info("Created ErrorLogging table")
+            else:
+                self.logger.error("Failed to create ErrorLogging table")
+                return False
+
+            # Drop and create CurrencyConversionLog table
+            if self.db_manager.table_exists("CurrencyConversionLog"):
+                self.db_manager.drop_table("CurrencyConversionLog")
+                dropped_tables.append("CurrencyConversionLog")
+            success = self.db_manager.create_table(
+                "CurrencyConversionLog", 
+                currency_conversion_log_schema, 
+                primary_key="LogID"
+            )
+            if success:
+                tables_created.append("CurrencyConversionLog")
+                self.logger.info("Created CurrencyConversionLog table")
+            else:
+                self.logger.error("Failed to create CurrencyConversionLog table")
+                return False
+
             # Create indexes for better performance
             self._create_indexes()
-            
-            self.logger.info(f"Database schema created successfully. Tables: {tables_created}")
+            self.logger.info(
+                f"Database schema created successfully. Tables dropped: {dropped_tables}, Tables created: {tables_created}"
+            )
             return True
-            
+
         except Exception as e:
             self.logger.error("Failed to create database schema", error=e)
             return False
@@ -201,8 +207,16 @@ class DataLoader:
         """
         try:
             self.logger.info(f"Loading sales data into {table_name}")
-            # Convert to Pandas DataFrame
+
+            # Cast problematic datetime columns to string in Spark before toPandas
+            datetime_cols = ["OrderDate", "ProcessingTimestamp"]
+            for col_name in datetime_cols:
+                if col_name in df.columns:
+                    df = df.withColumn(col_name, col(col_name).cast("string"))
+
+            # Now convert to Pandas DataFrame
             pandas_df = df.toPandas()
+
             self.logger.info(f"DataFrame columns: {list(pandas_df.columns)}")
             self.logger.info(f"DataFrame dtypes before fix: {pandas_df.dtypes}")
             if not pandas_df.empty:
@@ -217,37 +231,27 @@ class DataLoader:
                 ("OriginalSaleAmount", float),
                 ("OriginalCurrency", str),
                 ("ExchangeRate", float),
-                ("OrderDate", 'datetime64[ns]'),
+                ("OrderDate", 'datetime64[ns]'),  # <-- correct dtype
                 ("Region", str),
                 ("CustomerID", str),
                 ("Discount", float),
                 ("Currency", str),
-                ("ProcessingTimestamp", 'datetime64[ns]')
+                ("ProcessingTimestamp", 'datetime64[ns]')  # <-- correct dtype
             ]
+    
             for col_name, dtype in schema:
-                if col_name not in pandas_df.columns:
-                    # Add missing columns with default value
-                    if dtype == float:
-                        pandas_df[col_name] = 0.0
-                    elif dtype == 'datetime64[ns]':
-                        pandas_df[col_name] = pd.NaT
+                if col_name in pandas_df.columns:
+                    if dtype == 'datetime64[ns]':
+                        pandas_df[col_name] = pd.to_datetime(pandas_df[col_name], errors='coerce')
                     else:
-                        pandas_df[col_name] = ''
-                try:
-                    if dtype == float:
-                        pandas_df[col_name] = pd.to_numeric(pandas_df[col_name], errors='coerce').fillna(0.0)
-                    elif dtype == 'datetime64[ns]':
-                        pandas_df[col_name] = pd.to_datetime(pandas_df[col_name], errors='coerce').astype('datetime64[ns]')
-                    else:
-                        pandas_df[col_name] = pandas_df[col_name].astype(str)
-                except Exception as e:
-                    self.logger.warning(f"Could not convert column {col_name} to {dtype}: {e}")
-            # Aggressively fix any remaining datetime columns
-            self.logger.info(f"Dtypes before final datetime fix: {pandas_df.dtypes}")
-            for col_name in pandas_df.columns:
-                if 'datetime' in str(pandas_df[col_name].dtype):
+                        pandas_df[col_name] = pandas_df[col_name].astype(dtype, errors='ignore')
+            # Fix any remaining datetime columns with comprehensive conversion
+            datetime_columns = [col for col, dtype in schema if dtype == 'datetime64[ns]']
+            for col_name in datetime_columns:
+                if col_name in pandas_df.columns:
+                    # Always force conversion to datetime64[ns], regardless of current dtype
                     try:
-                        pandas_df[col_name] = pandas_df[col_name].astype('datetime64[ns]')
+                        pandas_df[col_name] = pd.to_datetime(pandas_df[col_name], errors='coerce').astype('datetime64[ns]')
                     except Exception as e:
                         self.logger.warning(f"Could not convert {col_name} to datetime64[ns]: {e}. Dropping column.")
                         pandas_df = pandas_df.drop(columns=[col_name])
@@ -266,6 +270,9 @@ class DataLoader:
                 self.logger.error(f"Failed to load data into {table_name}")
                 return False
         except Exception as e:
+            print("traceback.format_exc()")
+            import traceback    
+            self.logger.info(traceback.format_exc())
             self.logger.error(f"Failed to load sales data into {table_name}", error=e)
             return False
     
@@ -519,4 +526,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

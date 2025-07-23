@@ -44,7 +44,7 @@ class CurrencyConverter:
         self.base_currency = self.config.get('base_currency', 'USD')
         self.timeout = self.config.get('timeout', 10)
         self.retry_attempts = self.config.get('retry_attempts', 3)
-        self.cache_duration = timedelta(hours=self.config.get('cache_duration_hours', 24))
+        self.cache_duration = timedelta(hours=self.config.get('cache_duration_hours', 1))
         self.fallback_rates = self.config.get('fallback_rates', {})
         
         # In-memory cache for exchange rates

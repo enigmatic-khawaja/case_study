@@ -49,7 +49,7 @@ This project implements a robust, production-grade ETL (Extract, Transform, Load
    - Database: Connect to SQL Server at `localhost:1433` (user: `sa`, password: `YourStrong@Passw0rd`)
 
 ## Configuration
-- **config.yaml**: Central config for database, data sources, validation, logging, and processing.
+- **config.yaml**: Central config for database, data sources, validation, logging, and processing. max_error_rate is set to 15% for running the pipeline if set to 5% it will fail. 
 - **Edit as needed** for your environment or business rules.
 
 ## Troubleshooting
